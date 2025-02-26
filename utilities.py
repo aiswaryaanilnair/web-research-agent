@@ -124,7 +124,7 @@ def generate_search_queries(company, country, data_dir):
         return None
     
 def news_articles(search_queries, df):
-    def fetch_news_urls(query, num_results=100, years_back=5):
+    def fetch_news_urls(query, num_results=1, years_back=5):
         """
         Fetch news article URLs from a given search query using Google News RSS feed
         with a date filter for the last 5 years
@@ -275,7 +275,7 @@ def articles(company):
                 payload = {
                     "api_key": TAVILY_API_KEY,
                     "query": query,
-                    "max_results": 20
+                    "max_results": 2
                 }
                 response = requests.post(url, json=payload)
                 if response.status_code == 200:
@@ -292,13 +292,12 @@ def articles(company):
             Analyze the following text for any media mentions related to {entity}.
             
             **Rules:**
-            1. First, check if the event occurred more than five years ago. If it did, return an empty string.
-            2. If the event is within the last five years, provide a summary of the key findings.
-            3. Clearly flag any adverse mentions if present.
-            4. If no adverse mentions are found, still provide a summary of the event without marking it as adverse.
+            1. First, analyse the content and provide a summary of the key findings.
+            2. Clearly flag any adverse mentions if present.
+            3. If no adverse mentions are found, still provide a summary of the event without marking it as adverse.
             
             OUTPUT:
-            "The content...." if summary can be generated
+            "The content...." or "The article..." if summary can be generated
             or
             "" otherwise
 
