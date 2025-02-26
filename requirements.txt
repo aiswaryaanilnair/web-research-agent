@@ -10,4 +10,3 @@ lxml_html_clean
 gpt_researcher==0.11.1
 langgraph
 prettytable
-git+https://aiswaryaanilnair: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@github.com/Scanflow-ai/elsai-core.git@elsai-core-dev
