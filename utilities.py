@@ -30,7 +30,6 @@ OPENAI_API_VERSION = st.secrets["OPENAI_API_VERSION"]
 
 chat = AzureOpenAIConnector().connect_azure_open_ai("gpt-4o-mini")
 
-
 class ContactInformation(BaseModel):
     email: Optional[str] = Field(None, description="Company email address")
     phone: Optional[str] = Field(None, description="Company phone number")
@@ -123,7 +122,7 @@ def generate_search_queries(company, country, data_dir):
         print(f"Error generating search queries: {str(e)}")
         return None
     
-def news_articles(search_queries, df):
+def news_articles(search_queries, df, company):
     def fetch_news_urls(query, num_results=2, years_back=5):
         """
         Fetch news article URLs from a given search query using Google News RSS feed
@@ -207,13 +206,13 @@ def news_articles(search_queries, df):
         sentiment = chat(messages)
         return sentiment.content
     
-    def check_content(content, search_query):
+    def check_content(content, company):
         prompt = f"""
-        Analyze the content of the given text and check if the text is related to the query '{search_query}' or not. If it is not related, return empty string, else return the content as such. 
+        Analyze the content of the given text and check if the text is related to the company '{company}' or not. If it is not related, return empty string, else return the content as such. 
         Content: {content}
         
         OUTPUT FORMAT:
-        {content} if it is related to '{search_query}', 
+        {content} if it is related to '{company}', 
         "", otherwise
         """
         messages = [
@@ -233,11 +232,13 @@ def news_articles(search_queries, df):
                 result=get_content(url["url"])
                 link=result[0]
                 content=result[1]
+                if content == "" or content == None:
+                    continue
                 if link in visited_urls:
                     continue
                 visited_urls.add(link)
                 summary=get_content_summary(content)
-                summarised_content = check_content(summary, search_query)
+                summarised_content = check_content(summary, company)
                 if summarised_content == "":
                     continue
                 sentiment= get_sentiment(summarised_content)
@@ -250,11 +251,14 @@ def news_articles(search_queries, df):
     
     visited_urls = set()
     for query in search_queries:
-        df_news = pd.DataFrame(columns=["url", "content", "sentiment"])
-        result = news(query, df_news, visited_urls)
-        visited_urls = result[0]
-        df_news = result[1]
-        df = pd.concat([df, df_news], ignore_index=True)
+        try:
+            df_news = pd.DataFrame(columns=["url", "content", "sentiment"])
+            result = news(query, df_news, visited_urls)
+            visited_urls = result[0]
+            df_news = result[1]
+            df = pd.concat([df, df_news], ignore_index=True)
+        except Exception as e:
+            print(f"Error processing news: {e}")
     return df
 
 def articles(company):
@@ -342,7 +346,7 @@ def articles(company):
         for entity in entities:
             print(f"Searching for adverse media related to {entity}...")
             search_results = search_tavily_adverse(f"{entity} news")
-            visited_urls = ()
+            visited_urls = set()
             for result in search_results:
                 if result.get("url", "") in visited_urls:
                     continue

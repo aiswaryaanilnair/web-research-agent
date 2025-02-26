@@ -213,9 +213,9 @@ def get_download_link(excel_data, file_name):
     href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{file_name}">Download Web Research Results</a>'
     return href
 
-def get_analysis_results(content_list):
+def get_analysis_results(content_list, company):
     prompt = f"""
-    Analyse the following content and identify the key findings from the list provided. Return minimum 3 and maximum 15 key findings as bullet points. Make sure that the key findings are unique. Do not include any other text other than the key findings.
+    Analyse the following content and identify the key findings related to company, {company}, from the list provided. Return maximum 15 key findings as bullet points. Make sure that the key findings are unique and related to {company}. Do not include any other text other than the key findings.
     Content: {content_list}
     
     OUTPUT FORMAT:
@@ -266,7 +266,7 @@ def main():
                     country = ""
                 queries = generate_search_queries(company_name, country, data_dict)
                 df = pd.DataFrame(columns=["url", "content", "sentiment"])
-                df = news_articles(queries["search_queries"], df)
+                df = news_articles(queries["search_queries"], df, company_name)
                 df_articles = articles(company_name)
                 df = pd.concat([df, df_articles], ignore_index=True)
                 output_file_name = "web_research_results.xlsx"
@@ -277,17 +277,17 @@ def main():
                 neutral_content = df[df['sentiment'] == 'Neutral']['content'].tolist()
                 st.subheader("Adverse Media Research Results:")
                 st.dataframe(sentiment_counts)
-                positive_content = get_analysis_results(positive_content)
+                positive_content = get_analysis_results(positive_content, company_name)
                 if positive_content != "":
-                    st.write("Positive Media Keypoints:")
+                    st.markdown("# Positive Media Keypoints:")
                     st.markdown(positive_content)
-                negative_content = get_analysis_results(negative_content)
+                negative_content = get_analysis_results(negative_content, company_name)
                 if negative_content!= "":
-                    st.write("Negative Media Keypoints:")
+                    st.markdown("# Negative Media Keypoints:")
                     st.markdown(negative_content)
-                neutral_content = get_analysis_results(neutral_content)
+                neutral_content = get_analysis_results(neutral_content, company_name)
                 if neutral_content!= "":
-                    st.write("Neutral Media Keypoints:")
+                    st.markdown("# Neutral Media Keypoints:")
                     st.markdown(neutral_content)
                 excel_data = convert_df_to_excel(df)
                 st.markdown(get_download_link(excel_data, output_file_name), unsafe_allow_html=True)
