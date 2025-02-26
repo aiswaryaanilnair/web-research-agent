@@ -17,13 +17,6 @@ load_dotenv()
 
 from langchain_openai import ChatOpenAI
 
-# Now import the package (after installation)
-try:
-    import elsai_core
-    st.success("✅ elsai-core module loaded successfully!")
-except ImportError:
-    st.error("❌ ModuleNotFoundError: elsai_core could not be imported.")
-
 llm = ChatOpenAI(
     openai_api_base="https://api.openai.com/v1",
     openai_api_key=st.secret["OPENAI_API_KEY"],
