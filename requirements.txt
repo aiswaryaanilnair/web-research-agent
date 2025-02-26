@@ -6,7 +6,7 @@ pandas
 requests
 python-dotenv
 lxml_html_clean
-gpt_researcher=0.11.1
+gpt_researcher==0.11.1
 langgraph
 streamlit
 prettytable
