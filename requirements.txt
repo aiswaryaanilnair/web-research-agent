@@ -10,4 +10,4 @@ lxml_html_clean
 gpt_researcher==0.11.1
 langgraph
 prettytable
-pip install git+https://aiswaryaanilnair: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@github.com/Scanflow-ai/elsai-core.git@elsai-core-dev
+git+https://aiswaryaanilnair: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@github.com/Scanflow-ai/elsai-core.git@elsai-core-dev
