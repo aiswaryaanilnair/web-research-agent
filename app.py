@@ -19,7 +19,7 @@ from langchain_openai import ChatOpenAI
 
 llm = ChatOpenAI(
     openai_api_base="https://api.openai.com/v1",
-    openai_api_key=st.secret["OPENAI_API_KEY"],
+    openai_api_key=st.secrets["OPENAI_API_KEY"],
     model_name="gpt-4o-mini",
 )
 
