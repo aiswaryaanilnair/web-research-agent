@@ -19,8 +19,8 @@ from langchain_openai import ChatOpenAI
 import subprocess
 
 # Install the private GitHub package at runtime
-GITHUB_USER = st.secret("GITHUB_USER")
-GITHUB_TOKEN = st.secret("GITHUB_TOKEN")
+GITHUB_USER = st.secret["GITHUB_USER"]
+GITHUB_TOKEN = st.secret["GITHUB_TOKEN"]
 
 if GITHUB_USER and GITHUB_TOKEN:
     repo_url = f"git+https://{GITHUB_USER}:{GITHUB_TOKEN}@github.com/Scanflow-ai/elsai-core.git@elsai-core-dev"
