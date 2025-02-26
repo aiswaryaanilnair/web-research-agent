@@ -1,4 +1,4 @@
-git+https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/Scanflow-ai/elsai-core.git@elsai-core-dev
+streamlit
 langchain
 feedparser
 newspaper3k
@@ -9,5 +9,4 @@ python-dotenv
 lxml_html_clean
 gpt_researcher==0.11.1
 langgraph
-streamlit
 prettytable
