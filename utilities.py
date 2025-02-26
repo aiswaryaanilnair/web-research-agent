@@ -124,7 +124,7 @@ def generate_search_queries(company, country, data_dir):
         return None
     
 def news_articles(search_queries, df):
-    def fetch_news_urls(query, num_results=1, years_back=5):
+    def fetch_news_urls(query, num_results=100, years_back=5):
         """
         Fetch news article URLs from a given search query using Google News RSS feed
         with a date filter for the last 5 years
@@ -275,7 +275,7 @@ def articles(company):
                 payload = {
                     "api_key": TAVILY_API_KEY,
                     "query": query,
-                    "max_results": 1
+                    "max_results": 20
                 }
                 response = requests.post(url, json=payload)
                 if response.status_code == 200:
