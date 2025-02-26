@@ -212,7 +212,23 @@ def get_download_link(excel_data, file_name):
     b64 = base64.b64encode(excel_data).decode()
     href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{file_name}">Download Web Research Results</a>'
     return href
+
+def get_analysis_results(content_list):
+    prompt = f"""
+    Analyse the following content and identify the key findings from the list provided. Return minimum 3 and maximum 15 key findings as bullet points. Make sure that the key findings are unique. Do not include any other text other than the key findings.
+    Content: {content_list}
     
+    OUTPUT FORMAT:
+    "- Key Finding 1\n
+    - Key Finding 2"
+    if key findings are found
+    
+    ""
+    otherwise
+    """
+    response = llm.invoke(prompt)
+    return response.content
+
 def main():
     st.title("AI Web Research Agent")
 
@@ -256,10 +272,25 @@ def main():
                 output_file_name = "web_research_results.xlsx"
                 sentiment_counts = df["sentiment"].value_counts().reset_index()
                 sentiment_counts.columns = ["Sentiment", "Count"]
-                st.subheader("Web Research Results:")
+                positive_content = df[df['sentiment'] == 'Positive']['content'].tolist()
+                negative_content = df[df['sentiment'] == 'Negative']['content'].tolist()
+                neutral_content = df[df['sentiment'] == 'Neutral']['content'].tolist()
+                st.subheader("Adverse Media Research Results:")
                 st.dataframe(sentiment_counts)
+                positive_content = get_analysis_results(positive_content)
+                if positive_content != "":
+                    st.write("Positive Media Keypoints:")
+                    st.markdown(positive_content)
+                negative_content = get_analysis_results(negative_content)
+                if negative_content!= "":
+                    st.write("Negative Media Keypoints:")
+                    st.markdown(negative_content)
+                neutral_content = get_analysis_results(neutral_content)
+                if neutral_content!= "":
+                    st.write("Neutral Media Keypoints:")
+                    st.markdown(neutral_content)
                 excel_data = convert_df_to_excel(df)
-                st.markdown(get_download_link(excel_data, "web_research_results.xlsx"), unsafe_allow_html=True)
+                st.markdown(get_download_link(excel_data, output_file_name), unsafe_allow_html=True)
 
         except Exception as e:
             st.error(f"An error occurred: {str(e)}")

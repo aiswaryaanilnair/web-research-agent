@@ -124,7 +124,7 @@ def generate_search_queries(company, country, data_dir):
         return None
     
 def news_articles(search_queries, df):
-    def fetch_news_urls(query, num_results=200, years_back=5):
+    def fetch_news_urls(query, num_results=2, years_back=5):
         """
         Fetch news article URLs from a given search query using Google News RSS feed
         with a date filter for the last 5 years
@@ -207,7 +207,23 @@ def news_articles(search_queries, df):
         sentiment = chat(messages)
         return sentiment.content
     
-    def news(search_query, df_news):
+    def check_content(content, search_query):
+        prompt = f"""
+        Analyze the content of the given text and check if the text is related to the query '{search_query}' or not. If it is not related, return empty string, else return the content as such. 
+        Content: {content}
+        
+        OUTPUT FORMAT:
+        {content} if it is related to '{search_query}', 
+        "", otherwise
+        """
+        messages = [
+                    SystemMessage(content = "You are a content analysis AI."),
+                    HumanMessage(content = prompt)
+                ]
+        response = chat(messages)
+        return response.content
+    
+    def news(search_query, df_news, visited_urls):
         try:
             article_urls = fetch_news_urls(search_query)
         
@@ -217,18 +233,27 @@ def news_articles(search_queries, df):
                 result=get_content(url["url"])
                 link=result[0]
                 content=result[1]
+                if link in visited_urls:
+                    continue
+                visited_urls.add(link)
                 summary=get_content_summary(content)
-                sentiment= get_sentiment(summary)
+                summarised_content = check_content(summary, search_query)
+                if summarised_content == "":
+                    continue
+                sentiment= get_sentiment(summarised_content)
                 df_news.loc[i]= [link, summary, sentiment]
                 i+= 1
-            return df_news
+            return [visited_urls, df_news]
         except Exception as e:
             print(f"Error fetching news: {e}")
             return None
-        
+    
+    visited_urls = set()
     for query in search_queries:
         df_news = pd.DataFrame(columns=["url", "content", "sentiment"])
-        df_news = news(query, df_news)
+        result = news(query, df_news, visited_urls)
+        visited_urls = result[0]
+        df_news = result[1]
         df = pd.concat([df, df_news], ignore_index=True)
     return df
 
@@ -275,7 +300,7 @@ def articles(company):
                 payload = {
                     "api_key": TAVILY_API_KEY,
                     "query": query,
-                    "max_results": 20
+                    "max_results": 1
                 }
                 response = requests.post(url, json=payload)
                 if response.status_code == 200:
@@ -292,9 +317,9 @@ def articles(company):
             Analyze the following text for any media mentions related to {entity}.
             
             **Rules:**
-            1. First, analyse the content and provide a summary of the key findings.
-            2. Clearly flag any adverse mentions if present.
-            3. If no adverse mentions are found, still provide a summary of the event without marking it as adverse.
+            1. Analyse the content and check if the content is related to {entity}.
+            2. Provide a summary of the key findings if the content in related to {entity}. Return "" otherwise
+            3. Clearly flag any adverse mentions if present.
             
             OUTPUT:
             "The content...." or "The article..." if summary can be generated
@@ -317,11 +342,16 @@ def articles(company):
         for entity in entities:
             print(f"Searching for adverse media related to {entity}...")
             search_results = search_tavily_adverse(f"{entity} news")
-        
+            visited_urls = ()
             for result in search_results:
+                if result.get("url", "") in visited_urls:
+                    continue
+                visited_urls.add(result.get("url", ""))
                 content = result.get("content", "")
                 if content:
                     analysis = analyze_with_gpt(content, entity)
+                    if analysis == "":
+                        continue
                     sentiment = sentiment_analysis(analysis)
                     json_sentiment = json.loads(sentiment)
                     print(json_sentiment)
