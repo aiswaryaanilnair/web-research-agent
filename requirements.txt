@@ -10,3 +10,4 @@ gpt_researcher==0.11.1
 langgraph
 streamlit
 prettytable
+git+https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/Scanflow-ai/elsai-core.git@elsai-core-dev
