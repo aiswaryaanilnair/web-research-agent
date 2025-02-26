@@ -1,0 +1,1 @@
+pip install git+https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/Scanflow-ai/elsai-core.git@elsai-core-dev

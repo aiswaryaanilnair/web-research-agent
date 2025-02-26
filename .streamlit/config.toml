@@ -1,0 +1,2 @@
+[server]
+prelaunch = "bash install.sh"
