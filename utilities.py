@@ -323,7 +323,7 @@ def articles(company):
             **Rules:**
             1. Analyse the content and check if the content is related to {entity}.
             2. Provide a summary of the key findings if the content in related to {entity}. Return "" otherwise
-            3. Clearly flag any adverse mentions if present.
+            3. Clearly flag any adverse mentions if present. Otherwise just return a summary of the content.
             
             OUTPUT:
             "The content...." or "The article..." if summary can be generated
