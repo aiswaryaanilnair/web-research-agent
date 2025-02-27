@@ -279,15 +279,15 @@ def main():
                 st.dataframe(sentiment_counts)
                 positive_content = get_analysis_results(positive_content, company_name)
                 if positive_content != "":
-                    st.markdown("### Positive Media Keypoints:")
+                    st.markdown("#### Positive Media Keypoints:")
                     st.markdown(positive_content)
                 negative_content = get_analysis_results(negative_content, company_name)
                 if negative_content!= "":
-                    st.markdown("### Negative Media Keypoints:")
+                    st.markdown("#### Negative Media Keypoints:")
                     st.markdown(negative_content)
                 neutral_content = get_analysis_results(neutral_content, company_name)
                 if neutral_content!= "":
-                    st.markdown("### Neutral Media Keypoints:")
+                    st.markdown("#### Neutral Media Keypoints:")
                     st.markdown(neutral_content)
                 excel_data = convert_df_to_excel(df)
                 st.markdown(get_download_link(excel_data, output_file_name), unsafe_allow_html=True)
