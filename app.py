@@ -278,15 +278,15 @@ def main():
                 st.subheader("Adverse Media Research Results:")
                 st.dataframe(sentiment_counts)
                 positive_content = get_analysis_results(positive_content, company_name)
-                if positive_content != "":
+                if positive_content != '""':
                     st.markdown("#### Positive Media Keypoints:")
                     st.markdown(positive_content)
                 negative_content = get_analysis_results(negative_content, company_name)
-                if negative_content!= "":
+                if negative_content!= '""':
                     st.markdown("#### Negative Media Keypoints:")
                     st.markdown(negative_content)
                 neutral_content = get_analysis_results(neutral_content, company_name)
-                if neutral_content!= "":
+                if neutral_content!= '""':
                     st.markdown("#### Neutral Media Keypoints:")
                     st.markdown(neutral_content)
                 excel_data = convert_df_to_excel(df)
