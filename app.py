@@ -269,6 +269,8 @@ def main():
                 df = news_articles(queries["search_queries"], df, company_name)
                 df_articles = articles(company_name)
                 df = pd.concat([df, df_articles], ignore_index=True)
+                df = df[df['content'] != '""']
+                df = df.reset_index(drop=True)
                 output_file_name = "web_research_results.xlsx"
                 sentiment_counts = df["sentiment"].value_counts().reset_index()
                 sentiment_counts.columns = ["Sentiment", "Count"]
