@@ -11,6 +11,7 @@ from utilities import generate_search_queries, news_articles, articles, fetch_co
 import pandas as pd
 import base64
 import io
+import ast
 
 # Load environment variables
 load_dotenv()
@@ -229,22 +230,101 @@ def get_analysis_results(content_list, company):
     response = llm.invoke(prompt)
     return response.content
 
+def director_check(content, company, data_dict):
+    prompt = f"""
+From {data_dict}, for {company}, identify the directors. From the information, perform director sanity check on the provided content. 
+Return every content that refers to the directors of the company. From that content, analyse it and provide bullet points related to the directors.
+Do not include any other text other than the director check analysis. Return as bullet points for markdown file.
+Content: {content}
+OUTPUT FORMAT:
+- Point 1
+- Point 2
+"""
+    response = llm.invoke(prompt)
+    return response.content
+
+def analyze_sentiment_by_tag(df):
+    def parse_tags(tag_str):
+        try:
+            if isinstance(tag_str, str):
+                return ast.literal_eval(tag_str)
+            return tag_str
+        except (ValueError, SyntaxError):
+            return []
+    
+    processed_df = df.copy()
+    processed_df['parsed_tags'] = processed_df['tags'].apply(parse_tags)
+    
+    tag_counts = {}
+    
+    for _, row in processed_df.iterrows():
+        tags = row['parsed_tags']
+        sentiment = row['sentiment']
+        
+        if not isinstance(tags, list) or len(tags) == 0:
+            continue
+        
+        for tag in tags:
+            tag = tag.capitalize()
+            if tag not in tag_counts:
+                tag_counts[tag] = {
+                    'total': 0,
+                    'Positive': 0,
+                    'Negative': 0,
+                    'Neutral': 0
+                }
+            
+            tag_counts[tag]['total'] += 1
+            tag_counts[tag][sentiment] += 1
+    
+    result_rows = []
+    for tag, counts in tag_counts.items():
+        total = counts['total']
+        row_data = {'tag': tag, 'total_articles': total}
+        
+        for sentiment in ['Positive', 'Negative', 'Neutral']:
+            count = counts.get(sentiment, 0)
+            percentage = (count / total) * 100 if total > 0 else 0
+            row_data[sentiment] = round(percentage, 2)
+        
+        result_rows.append(row_data)
+    
+    if not result_rows:
+        return pd.DataFrame(columns=['Negative', 'Neutral', 'Positive', 'total_articles'])
+    
+    result_df = pd.DataFrame(result_rows)
+    result_df = result_df.set_index('tag')
+    result_df = result_df[['Negative', 'Neutral', 'Positive', 'total_articles']]
+    result_df = result_df.drop(columns=['total_articles'])
+    
+    return result_df
+
 def main():
     st.title("AI Web Research Agent")
 
     col1, col2 = st.columns(2)
+    col3, col4 = st.columns(2)
 
     with col1:
         company_name = st.text_input("Enter the name of the company:")
 
     with col2:
         country = st.text_input("Enter country (optional):")
+        
+    with col3:
+        years_back = st.number_input("Number of Years to Analyze (optional):", min_value=1, value=5)
+        
+    with col4:
+        max_results = st.number_input("Maximum search results per query (optional):", min_value=1, value=10)
 
     if st.button("Fetch Details"):
         if not company_name:
             st.warning("Please enter a company name.")
             return
-
+        if not years_back:
+            years_back = 3
+        if not max_results:
+            max_results = 10
         try:
             with st.spinner("Fetching details, please wait..."):
                 if country.strip():
@@ -265,12 +345,12 @@ def main():
                 if not country:
                     country = ""
                 queries = generate_search_queries(company_name, country, data_dict)
-                df = pd.DataFrame(columns=["url", "content", "sentiment"])
-                df = news_articles(queries["search_queries"], df, company_name)
-                df_articles = articles(company_name)
+                df = pd.DataFrame(columns=["url", "content", "sentiment", "tags"])
+                corporate_actions = queries["corporate_actions"]
+                adverse_media = queries["adverse_media"]
+                df = news_articles(queries["search_queries"], df, company_name, corporate_actions, adverse_media, years_back, max_results)
+                df_articles = articles(company_name, corporate_actions, adverse_media, max_results)
                 df = pd.concat([df, df_articles], ignore_index=True)
-                df = df[df['content'] != '""']
-                df = df.reset_index(drop=True)
                 output_file_name = "web_research_results.xlsx"
                 sentiment_counts = df["sentiment"].value_counts().reset_index()
                 sentiment_counts.columns = ["Sentiment", "Count"]
@@ -291,6 +371,14 @@ def main():
                 if neutral_content!= '""':
                     st.markdown("#### Neutral Media Keypoints:")
                     st.markdown(neutral_content)
+                content_list = df["content"].tolist()
+                director_content = director_check(content_list, company_name, data_dict)
+                sent_df = analyze_sentiment_by_tag(df)
+                st.markdown("### Sentiment Distribution by Category")
+                st.dataframe(sent_df.style.format("{:.2f}%"))
+                
+                st.markdown("## Directors Sanity Check")
+                st.markdown(director_content)
                 excel_data = convert_df_to_excel(df)
                 st.markdown(get_download_link(excel_data, output_file_name), unsafe_allow_html=True)
 

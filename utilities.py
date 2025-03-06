@@ -92,22 +92,26 @@ def generate_search_queries(company, country, data_dir):
     try:
         if country == "":
             prompt = f"""
-            For the given company, {company}, use {data_dir["Details"]} to generate search queries such that it can be used in TAVILY to generate detailed information about the company for adverse media screening.
+            For the given company, {company}, use {data_dir["Details"]} to generate search queries such that it can be used in TAVILY to generate detailed information about the company for adverse media screening and generate corporate actions keywords and adverse media keywords related to this company as separate lists which will be used for classification
             OUTPUT in JSON format:\n"""  + """
             {
-                'search_queries': ['query1', 'query2']
+                'search_queries': ['query1', 'query2'],
+                'corporate_actions':['keyword1', 'keyword2'],
+                'adverse_media':['keyword1', 'keyword2']
             }
             """
         else:
             prompt = f"""
-            For the given company, {company} in {country}, use {data_dir["Details"]} to generate search queries such that it can be used in TAVILY to generate detailed information about the company for adverse media screening.
+            For the given company, {company} in {country}, use {data_dir["Details"]} to generate search queries such that it can be used in TAVILY to generate detailed information about the company for adverse media screening and generate corporate actions keywords and adverse media keywords related to this company as separate lists which will be used for classification
             OUTPUT in JSON format:\n"""  + """
             {
-                'search_queries': ['query1', 'query2']
+                'search_queries': ['query1', 'query2'],
+                'corporate_actions':['keyword1', 'keyword2'],
+                'adverse_media':['keyword1', 'keyword2']
             }
             """
         messages = [
-                    SystemMessage(content = "You are a search query generator for adverse media screening."),
+                    SystemMessage(content = "You are a search query and keyword generator for adverse media screening."),
                     HumanMessage(content = prompt)
                 ]
                 
@@ -122,8 +126,34 @@ def generate_search_queries(company, country, data_dir):
         print(f"Error generating search queries: {str(e)}")
         return None
     
-def news_articles(search_queries, df, company):
-    def fetch_news_urls(query, num_results=250, years_back=5):
+def find_tag(content, corporate_actions, adverse_media):
+    query = f"""Find the tag from the following list related to the given company in the provided content. If not found, return an empty list.
+    Tags: {corporate_actions}, {adverse_media}
+    Content: {content}""" + """
+    
+    OUTPUT IN JSON format:
+    {
+        "tags"= [tag1, tag2]
+    }
+    
+    or 
+    {   
+        "tags"= []
+    }
+    """
+    messages = [
+                SystemMessage(content = "You are a tag finder."),
+                HumanMessage(content = query)
+            ]
+                
+    response = chat(messages)
+    result = response.content
+    result = result.replace("```json", "").replace("```", "")
+    tags = json.loads(result)
+    return tags["tags"]
+
+def news_articles(search_queries, df, company, corporate_actions, adverse_media, years_back, max_results):
+    def fetch_news_urls(query, num_results=max_results, years_back=years_back):
         """
         Fetch news article URLs from a given search query using Google News RSS feed
         with a date filter for the last 5 years
@@ -239,10 +269,11 @@ def news_articles(search_queries, df, company):
                 visited_urls.add(link)
                 summary=get_content_summary(content)
                 summarised_content = check_content(summary, company)
-                if summarised_content == "":
+                if summarised_content == '""':
                     continue
                 sentiment= get_sentiment(summarised_content)
-                df_news.loc[i]= [link, summary, sentiment]
+                tag = find_tag(content, corporate_actions, adverse_media)
+                df_news.loc[i]= [link, summary, sentiment, tag]
                 i+= 1
             return [visited_urls, df_news]
         except Exception as e:
@@ -252,7 +283,7 @@ def news_articles(search_queries, df, company):
     visited_urls = set()
     for query in search_queries:
         try:
-            df_news = pd.DataFrame(columns=["url", "content", "sentiment"])
+            df_news = pd.DataFrame(columns=["url", "content", "sentiment", "tags"])
             result = news(query, df_news, visited_urls)
             visited_urls = result[0]
             df_news = result[1]
@@ -261,10 +292,11 @@ def news_articles(search_queries, df, company):
             print(f"Error processing news: {e}")
     return df
 
-def articles(company):
+def articles(company, corporate_actions, adverse_media, max_results):
     entities = [company]
-    adverse_keywords = ["fraud", "scandal", "bribery", "corruption", "money laundering", "lawsuit"]
+    adverse_keywords = adverse_media
     non_adverse_keywords = ["award", "recognition", "innovation", "sustainability", "CSR", "growth"]
+    corporate_actions = corporate_actions
     
     def sentiment_analysis(final_analysis):
         if not final_analysis.strip():
@@ -298,13 +330,13 @@ def articles(company):
     def search_tavily_adverse(entity):
         try:
             results = []
-            for keyword in adverse_keywords+non_adverse_keywords:
+            for keyword in adverse_keywords+non_adverse_keywords+corporate_actions:
                 query = f"{entity} {keyword}"
                 url = "https://api.tavily.com/search"
                 payload = {
                     "api_key": TAVILY_API_KEY,
                     "query": query,
-                    "max_results": 20
+                    "max_results": max_results
                 }
                 response = requests.post(url, json=payload)
                 if response.status_code == 200:
@@ -316,29 +348,15 @@ def articles(company):
             print(f"Error searching Tavily: {e}")
             return []
 
-    def analyze_with_gpt(text, entity):
-        prompt = prompt = f"""
-            Analyze the following text for any media mentions related to {entity}.
-            
-            **Rules:**
-            1. Analyse the content and check if the content is related to {entity}.
-            2. Provide a summary of the key findings if the content in related to {entity}. Return "" otherwise
-            3. Clearly flag any adverse mentions if present. Otherwise just return a summary of the content.
-            
-            OUTPUT:
-            "The content...." or "The article..." if summary can be generated
-            or
-            "" otherwise
-
-            **Text:**  
-            {text}
-            """
-        messages = [
-            SystemMessage(content = "You are a helpful assistant that analyzes text for adverse media mentions."),
-            HumanMessage(content = prompt)
-        ]
-        response = chat(messages)
-        return response.content
+    def analyze_with_gpt(text):
+        try:
+            summariser = SummarizationService(chat)
+            result = summariser.summarize(text)                 
+            return result
+        
+        except Exception as e:
+            print(f"Error summarizing content: {e}")
+            return None
 
     def adverse_media_screening(entities):
         results = []
@@ -353,16 +371,18 @@ def articles(company):
                 visited_urls.add(result.get("url", ""))
                 content = result.get("content", "")
                 if content:
-                    analysis = analyze_with_gpt(content, entity)
-                    if analysis == "":
+                    analysis = analyze_with_gpt(content)
+                    if analysis == '""':
                         continue
                     sentiment = sentiment_analysis(analysis)
                     json_sentiment = json.loads(sentiment)
                     print(json_sentiment)
+                    tag = find_tag(content, corporate_actions, adverse_media)
                     results.append({
                         "url": result.get("url", ""),
                         "content": analysis,
-                        "sentiment": json_sentiment["sentiment"]
+                        "sentiment": json_sentiment["sentiment"],
+                        "tags": tag
                     })
     
         return pd.DataFrame(results)
