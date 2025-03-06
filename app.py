@@ -312,10 +312,10 @@ def main():
         country = st.text_input("Enter country (optional):")
         
     with col3:
-        years_back = st.number_input("Number of Years to Analyze (optional):", min_value=1, value=5)
+        years_back = st.number_input("Number of Years to Analyze (optional):", min_value=1, value=3)
         
     with col4:
-        max_results = st.number_input("Maximum search results per query (optional):", min_value=1, value=10)
+        max_results = st.number_input("Maximum search results per query (optional):", min_value=1, value=15)
 
     if st.button("Fetch Details"):
         if not company_name:
