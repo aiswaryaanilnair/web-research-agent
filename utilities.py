@@ -126,7 +126,7 @@ def generate_search_queries(company, country, data_dir):
         print(f"Error generating search queries: {str(e)}")
         return None
     
-def find_tag(content, corporate_actions, adverse_media):
+def find_tag(content, corporate_actions, adverse_media= []):
     query = f"""Find the tag from the following list related to the given company in the provided content. If not found, return an empty list.
     Tags: {corporate_actions}, {adverse_media}
     Content: {content}""" + """
@@ -272,7 +272,10 @@ def news_articles(search_queries, df, company, corporate_actions, adverse_media,
                 if summarised_content == '""':
                     continue
                 sentiment= get_sentiment(summarised_content)
-                tag = find_tag(content, corporate_actions, adverse_media)
+                if sentiment == "Positive":
+                    tag = find_tag(content, corporate_actions, [])
+                else:
+                    tag = find_tag(content, corporate_actions, adverse_media)
                 df_news.loc[i]= [link, summary, sentiment, tag]
                 i+= 1
             return [visited_urls, df_news]
@@ -377,7 +380,10 @@ def articles(company, corporate_actions, adverse_media, max_results):
                     sentiment = sentiment_analysis(analysis)
                     json_sentiment = json.loads(sentiment)
                     print(json_sentiment)
-                    tag = find_tag(content, corporate_actions, adverse_media)
+                    if json_sentiment["sentiment"] == "Positive":
+                        tag = find_tag(content, corporate_actions, [])
+                    else:
+                        tag = find_tag(content, corporate_actions, adverse_media)
                     results.append({
                         "url": result.get("url", ""),
                         "content": analysis,
