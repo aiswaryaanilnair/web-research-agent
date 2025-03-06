@@ -374,8 +374,6 @@ def main():
                 content_list = df["content"].tolist()
                 director_content = director_check(content_list, company_name, data_dict)
                 sent_df = analyze_sentiment_by_tag(df)
-                sent_df.rename(columns={"tag": "Tag"}, inplace=True)
-                sent_df.set_index("Tag", inplace=True)
                 st.markdown("### Sentiment Distribution by Category")
                 st.dataframe(sent_df.style.format("{:.2f}%"))
                 
