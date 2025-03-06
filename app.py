@@ -232,8 +232,8 @@ def get_analysis_results(content_list, company):
 
 def director_check(content, company, data_dict):
     prompt = f"""
-From {data_dict}, for {company}, identify the directors. From the information, perform director sanity check on the provided content. 
-Return every content that refers to the directors of the company. From that content, analyse it and provide bullet points related to the directors.
+From {data_dict}, for {company}, identify the directors. From the information, perform director sanity check on the provided content below. 
+Return every content that refers to the directors of the company. From that content, analyse it and provide bullet points related to the directors only.
 Do not include any other text other than the director check analysis. Return as bullet points for markdown file.
 Content: {content}
 OUTPUT FORMAT:
@@ -374,6 +374,8 @@ def main():
                 content_list = df["content"].tolist()
                 director_content = director_check(content_list, company_name, data_dict)
                 sent_df = analyze_sentiment_by_tag(df)
+                sent_df.rename(columns={"tag": "Tag"}, inplace=True)
+                sent_df.set_index("Tag", inplace=True)
                 st.markdown("### Sentiment Distribution by Category")
                 st.dataframe(sent_df.style.format("{:.2f}%"))
                 
