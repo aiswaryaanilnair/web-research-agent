@@ -227,8 +227,8 @@ def news_articles(search_queries, df, company, corporate_actions, adverse_media,
             print(f"Error summarizing content: {e}")
             return None
         
-    def get_sentiment(text):
-        prompt = f"Analyze the sentiment of the given text and classify it as 'Positive', 'Negative', or 'Neutral'. Provide only one of these three labels as the response, without any additional text or explanations. Content: {text}"
+    def get_sentiment(text, company):
+        prompt = f"Analyze the sentiment of the given content related to {company} and classify it as 'Positive', 'Negative', or 'Neutral'. Classify it as negative only if the content reflects negatively on the company. Provide only one of these three labels as the response, without any additional text or explanations. Content: {text}"
         messages = [
                         SystemMessage(content = "You are a sentiment analysis AI."),
                         HumanMessage(content = prompt)
@@ -306,7 +306,8 @@ def articles(company, corporate_actions, adverse_media, max_results):
             return "No recent mentions found."
     
         prompt = f"""
-        Perform sentiment analysis on the following summary.
+        Analyze the sentiment of the given content for {company} and classify it as 'Positive', 'Negative', or 'Neutral'. 
+        Classify it as negative only if the content reflects negatively on the company.
     
         **Rules:**
         - Classify sentiment as **Positive, Negative, or Neutral**.
