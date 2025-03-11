@@ -271,7 +271,7 @@ def news_articles(search_queries, df, company, corporate_actions, adverse_media,
                 summarised_content = check_content(summary, company)
                 if summarised_content == '""':
                     continue
-                sentiment= get_sentiment(summarised_content)
+                sentiment= get_sentiment(summarised_content, company)
                 if sentiment == "Positive":
                     tag = find_tag(content, corporate_actions, [])
                 else:
@@ -287,7 +287,7 @@ def news_articles(search_queries, df, company, corporate_actions, adverse_media,
     for query in search_queries:
         try:
             df_news = pd.DataFrame(columns=["url", "content", "sentiment", "tags"])
-            result = news(query, df_news, visited_urls)
+            result = news(query, company, df_news, visited_urls)
             visited_urls = result[0]
             df_news = result[1]
             df = pd.concat([df, df_news], ignore_index=True)
@@ -301,7 +301,7 @@ def articles(company, corporate_actions, adverse_media, max_results):
     non_adverse_keywords = ["award", "recognition", "innovation", "sustainability", "CSR", "growth"]
     corporate_actions = corporate_actions
     
-    def sentiment_analysis(final_analysis):
+    def sentiment_analysis(final_analysis, company):
         if not final_analysis.strip():
             return "No recent mentions found."
     
@@ -362,7 +362,7 @@ def articles(company, corporate_actions, adverse_media, max_results):
             print(f"Error summarizing content: {e}")
             return None
 
-    def adverse_media_screening(entities):
+    def adverse_media_screening(entities, company):
         results = []
     
         for entity in entities:
@@ -378,7 +378,7 @@ def articles(company, corporate_actions, adverse_media, max_results):
                     analysis = analyze_with_gpt(content)
                     if analysis == '""':
                         continue
-                    sentiment = sentiment_analysis(analysis)
+                    sentiment = sentiment_analysis(analysis, company)
                     json_sentiment = json.loads(sentiment)
                     print(json_sentiment)
                     if json_sentiment["sentiment"] == "Positive":
@@ -394,5 +394,5 @@ def articles(company, corporate_actions, adverse_media, max_results):
     
         return pd.DataFrame(results)
     
-    df = adverse_media_screening(entities)
+    df = adverse_media_screening(entities, company)
     return df
