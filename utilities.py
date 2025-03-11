@@ -252,7 +252,7 @@ def news_articles(search_queries, df, company, corporate_actions, adverse_media,
         response = chat(messages)
         return response.content
     
-    def news(search_query, df_news, visited_urls):
+    def news(search_query, company, df_news, visited_urls):
         try:
             article_urls = fetch_news_urls(search_query)
         
