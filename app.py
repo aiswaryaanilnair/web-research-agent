@@ -203,15 +203,15 @@ def final_output_generation(llm, report):
             directors_shareholders=["Information not available"],
             last_reported_revenue="Information not available",
         )
-def convert_df_to_excel(df):
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        df.to_excel(writer, index=False, sheet_name="web_research_results")
+def convert_df_to_json(df, output_file_name):
+    output = io.StringIO()
+    df.to_json(output, orient="records", indent=4)
     return output.getvalue()
 
-def get_download_link(excel_data, file_name):
-    b64 = base64.b64encode(excel_data).decode()
-    href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{file_name}">Download Web Research Results</a>'
+def get_download_link(json_data, file_name):
+    json_bytes = json_data.encode()  # Convert str to bytes
+    b64 = base64.b64encode(json_bytes).decode()  # Encode to base64
+    href = f'<a href="data:application/json;base64,{b64}" download="{file_name}">Download Web Research Results</a>'
     return href
 
 def get_analysis_results(content_list, company):
@@ -351,7 +351,7 @@ def main():
                 df = news_articles(queries["search_queries"], df, company_name, corporate_actions, adverse_media, years_back, max_results)
                 df_articles = articles(company_name, corporate_actions, adverse_media, max_results)
                 df = pd.concat([df, df_articles], ignore_index=True)
-                output_file_name = "web_research_results.xlsx"
+                output_file_name = "web_research_results.json"
                 sentiment_counts = df["sentiment"].value_counts().reset_index()
                 sentiment_counts.columns = ["Sentiment", "Count"]
                 positive_content = df[df['sentiment'] == 'Positive']['content'].tolist()
@@ -379,8 +379,8 @@ def main():
                 
                 st.markdown("## Directors Sanity Check")
                 st.markdown(director_content)
-                excel_data = convert_df_to_excel(df)
-                st.markdown(get_download_link(excel_data, output_file_name), unsafe_allow_html=True)
+                json_data = convert_df_to_json(df, output_file_name)
+                st.markdown(get_download_link(json_data, output_file_name), unsafe_allow_html=True)
 
         except Exception as e:
             st.error(f"An error occurred: {str(e)}")
