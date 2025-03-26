@@ -12,8 +12,10 @@ import pandas as pd
 import base64
 import io
 import ast
+import json
+import markdown
+from weasyprint import HTML
 
-# Load environment variables
 load_dotenv()
 
 from langchain_openai import ChatOpenAI
@@ -163,7 +165,7 @@ def format_company_data_as_dict(company_info):
                 sanitize_string(company_info.legal_form),
                 sanitize_string(company_info.country),
                 sanitize_string(company_info.town),
-                company_info.registration_date,
+                sanitize_string(company_info.registration_date),
                 sanitize_string(company_info.contact_information.email),
                 sanitize_string(company_info.contact_information.phone),
                 sanitize_string(str(company_info.contact_information.website)),
@@ -203,15 +205,42 @@ def final_output_generation(llm, report):
             directors_shareholders=["Information not available"],
             last_reported_revenue="Information not available",
         )
+        
+def reference_generation(llm, references):
+    prompt = f"""
+    Convert the given reference md file to a json representation with urls only, ignore all other data like title, author, etc, if present. Return JSON file only.
+    References: {references}"""+"""
+    OUTPUT FORMAT:
+    {
+        "References": ["url1", "url2", "url3"]
+    }
+    """
+    response = llm.invoke(prompt)
+    result = response.content
+    result = result.replace("```json", "").replace("```", "")
+    result = json.loads(result)
+    return result
+
 def convert_df_to_json(df, output_file_name):
     output = io.StringIO()
     df.to_json(output, orient="records", indent=4)
     return output.getvalue()
 
-def get_download_link(json_data, file_name):
+def get_download_link_json(json_data, file_name):
     json_bytes = json_data.encode()  # Convert str to bytes
     b64 = base64.b64encode(json_bytes).decode()  # Encode to base64
     href = f'<a href="data:application/json;base64,{b64}" download="{file_name}">Download Web Research Results</a>'
+    return href
+
+def convert_df_to_excel(df, output_file_name):
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+        df.to_excel(writer, index=False, sheet_name=output_file_name)
+    return output.getvalue()
+
+def get_download_link_excel(excel_data, file_name):
+    b64 = base64.b64encode(excel_data).decode()
+    href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{file_name}">Download Web Research Results</a>'
     return href
 
 def get_analysis_results(content_list, company):
@@ -299,6 +328,15 @@ def analyze_sentiment_by_tag(df):
     
     return result_df
 
+def md_to_html(input_md, output_html):
+    with open(input_md, "r", encoding="utf-8") as file:
+        md_content = file.read()
+
+    html_content = markdown.markdown(md_content, extensions=["extra"])
+
+    with open(output_html, "w", encoding="utf-8") as file:
+        file.write(html_content)
+    
 def main():
     st.title("AI Web Research Agent")
 
@@ -312,10 +350,16 @@ def main():
         country = st.text_input("Enter country (optional):")
         
     with col3:
-        years_back = st.number_input("Number of Years to Analyze (optional):", min_value=1, value=3)
+        state = st.text_input("Enter state (optional):")
         
     with col4:
-        max_results = st.number_input("Maximum search results per query (optional):", min_value=1, value=15)
+        years_back = st.number_input("Number of Years to Analyze (optional):", min_value=1, value=3)
+
+    fromDate = st.date_input("Start Date", date.today())
+    toDate = st.date_input("End Date", date.today())
+
+    if fromDate > toDate:
+        st.error("Start date must be before end date")
 
     if st.button("Fetch Details"):
         if not company_name:
@@ -323,64 +367,93 @@ def main():
             return
         if not years_back:
             years_back = 3
-        if not max_results:
-            max_results = 10
+            
+        max_results = 2
         try:
             with st.spinner("Fetching details, please wait..."):
-                if country.strip():
+                if country.strip() and state.strip():
+                    query = f"Provide the {company_name} details specifically in {state},{country}, including registration number, primary address, legal form, country, town, registration date, contact info, general details, UBO, directors/shareholders, subsidiaries, parent company, and last reported revenue. Focus on the company's operations, registration number, and registration in {country}."
+                elif country.strip() and not state.strip():
                     query = f"Provide the {company_name} details specifically in {country}, including registration number, primary address, legal form, country, town, registration date, contact info, general details, UBO, directors/shareholders, subsidiaries, parent company, and last reported revenue. Focus on the company's operations, registration number, and registration in {country}."
+                elif state.strip() and not country.strip():
+                    query = f"Provide the {company_name} details specifically in {state}, including registration number, primary address, legal form, country, town, registration date, contact info, general details, UBO, directors/shareholders, subsidiaries, parent company, and last reported revenue. Focus on the company's operations, registration number, and registration in {country}."
                 else:
                     query = f"Provide the {company_name} details, including registration number, primary address, legal form, country, town, registration date, contact info, general details, UBO, directors/shareholders, subsidiaries, parent company, and last reported revenue. Make sure to include any company registration or identification numbers."
 
                 report, references = asyncio.run(generate_evidence(query=query))
                 result = final_output_generation(llm, report)
+                ref_dict = reference_generation(llm, references)
 
                 data_dict = format_company_data_as_dict(result)
+                
+                combined_data = {"Company_Data": data_dict, "References": ref_dict}
+                with open(f"{company_name}_company_research.json", "w") as file:
+                    json.dump(combined_data, file, indent=4)
 
                 st.subheader("AI Web Research Agent Result: ")
                 st.table(data_dict)
 
                 st.subheader("References")
                 st.markdown(references, unsafe_allow_html=True)
+                
                 if not country:
                     country = ""
                 queries = generate_search_queries(company_name, country, data_dict)
                 df = pd.DataFrame(columns=["url", "content", "sentiment", "tags"])
                 corporate_actions = queries["corporate_actions"]
                 adverse_media = queries["adverse_media"]
-                df = news_articles(queries["search_queries"], df, company_name, corporate_actions, adverse_media, years_back, max_results)
-                df_articles = articles(company_name, corporate_actions, adverse_media, max_results)
+                df = news_articles(queries["search_queries"], df, company_name, corporate_actions, adverse_media, fromDate, toDate, max_results)
+                df_articles = articles(company_name, corporate_actions, adverse_media, max_results, fromDate, toDate)
                 df = pd.concat([df, df_articles], ignore_index=True)
-                output_file_name = "web_research_results.json"
+                output_file_name_json = f"{company_name}_web_research_results.json"
+                output_file_name_excel = f"{company_name[:4]}_web_research_results.xlsx"
                 sentiment_counts = df["sentiment"].value_counts().reset_index()
                 sentiment_counts.columns = ["Sentiment", "Count"]
                 positive_content = df[df['sentiment'] == 'Positive']['content'].tolist()
                 negative_content = df[df['sentiment'] == 'Negative']['content'].tolist()
                 neutral_content = df[df['sentiment'] == 'Neutral']['content'].tolist()
-                st.subheader("Adverse Media Research Results:")
-                st.dataframe(sentiment_counts)
+                
                 positive_content = get_analysis_results(positive_content, company_name)
-                if positive_content != '""':
-                    st.markdown("#### Positive Media Keypoints:")
-                    st.markdown(positive_content)
                 negative_content = get_analysis_results(negative_content, company_name)
-                if negative_content!= '""':
-                    st.markdown("#### Negative Media Keypoints:")
-                    st.markdown(negative_content)
                 neutral_content = get_analysis_results(neutral_content, company_name)
-                if neutral_content!= '""':
-                    st.markdown("#### Neutral Media Keypoints:")
-                    st.markdown(neutral_content)
+                
                 content_list = df["content"].tolist()
                 director_content = director_check(content_list, company_name, data_dict)
                 sent_df = analyze_sentiment_by_tag(df)
-                st.markdown("### Sentiment Distribution by Category")
-                st.dataframe(sent_df.style.format("{:.2f}%"))
                 
-                st.markdown("## Directors Sanity Check")
-                st.markdown(director_content)
-                json_data = convert_df_to_json(df, output_file_name)
-                st.markdown(get_download_link(json_data, output_file_name), unsafe_allow_html=True)
+                with open(f"{company_name}.md", "w") as f:
+                    f.write("# Adverse Media Research Results\n")
+                    md_table = sentiment_counts.to_markdown(index=False)
+                    f.write(md_table)
+                    if positive_content != '""':
+                        f.write("\n\n## Positive Media Keypoints:\n")
+                        f.write(positive_content)
+                
+                    if negative_content!= '""':
+                        f.write("\n\n## Negative Media Keypoints:\n")
+                        f.write(negative_content)
+                
+                    if neutral_content!= '""':
+                        f.write("\n\n## Neutral Media Keypoints:\n")
+                        f.write(neutral_content)
+                        
+                    f.write("\n\n## Sentiment Distribution by Category\n")
+                    md_table2 = sent_df.to_markdown(index=False)
+                    f.write(md_table2)
+                                    
+                    f.write("\n\n## Directors Sanity Check\n")
+                    f.write(director_content)
+                    
+                md_to_html(f"{company_name}.md", f"{company_name}.html")
+                HTML(f"{company_name}.html").write_pdf(f"{company_name}.pdf")
+
+                json_data = convert_df_to_json(df, output_file_name_json)
+                st.markdown(get_download_link_json(json_data, output_file_name_json), unsafe_allow_html=True)
+                json_df = df.to_json(output_file_name_json, orient="records", indent=4)
+                
+                excel_data = convert_df_to_excel(df, output_file_name_excel)
+                st.markdown(get_download_link_excel(excel_data, output_file_name_excel), unsafe_allow_html=True)
+                excel_df = df.to_excel(output_file_name_excel, index=False)
 
         except Exception as e:
             st.error(f"An error occurred: {str(e)}")
