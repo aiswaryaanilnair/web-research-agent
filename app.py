@@ -339,10 +339,9 @@ def md_to_html(input_md, output_html):
 def main():
     st.title("AI Web Research Agent")
 
-    col2, col3 = st.columns(2)
-
     company_name = st.text_input("Enter the name of the company:")
-
+    col2, col3 = st.columns(2)
+    
     with col2:
         country = st.text_input("Enter country (optional):")
         
