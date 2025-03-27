@@ -339,11 +339,9 @@ def md_to_html(input_md, output_html):
 def main():
     st.title("AI Web Research Agent")
 
-    col1, col2 = st.columns(2)
-    col3, col4 = st.columns(2)
+    col2, col3 = st.columns(2)
 
-    with col1:
-        company_name = st.text_input("Enter the name of the company:")
+    company_name = st.text_input("Enter the name of the company:")
 
     with col2:
         country = st.text_input("Enter country (optional):")
@@ -351,8 +349,6 @@ def main():
     with col3:
         state = st.text_input("Enter state (optional):")
         
-    with col4:
-        years_back = st.number_input("Number of Years to Analyze (optional):", min_value=1, value=3)
 
     fromDate = st.date_input("Start Date", date.today())
     toDate = st.date_input("End Date", date.today())
