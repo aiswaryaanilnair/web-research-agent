@@ -14,7 +14,6 @@ import io
 import ast
 import json
 import markdown
-from weasyprint import HTML
 
 load_dotenv()
 
@@ -445,7 +444,6 @@ def main():
                     f.write(director_content)
                     
                 md_to_html(f"{company_name}.md", f"{company_name}.html")
-                HTML(f"{company_name}.html").write_pdf(f"{company_name}.pdf")
 
                 json_data = convert_df_to_json(df, output_file_name_json)
                 st.markdown(get_download_link_json(json_data, output_file_name_json), unsafe_allow_html=True)
