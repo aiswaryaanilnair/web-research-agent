@@ -58,7 +58,6 @@ class CompanyInformation(BaseModel):
     legal_form: str = Field(..., description="Legal structure of the company")
     country: str = Field(..., description="Country where company is registered")
     town: str = Field(..., description="City and state/province of registration")
-    registration_date: str = Field(..., description="Date of company incorporation")
     contact_information: ContactInformation = Field(
         ..., description="Company contact details"
     )
@@ -164,7 +163,6 @@ def format_company_data_as_dict(company_info):
                 sanitize_string(company_info.legal_form),
                 sanitize_string(company_info.country),
                 sanitize_string(company_info.town),
-                sanitize_string(company_info.registration_date),
                 sanitize_string(company_info.contact_information.email),
                 sanitize_string(company_info.contact_information.phone),
                 sanitize_string(str(company_info.contact_information.website)),
@@ -198,7 +196,6 @@ def final_output_generation(llm, report):
             legal_form="Information not available",
             country="Information not available",
             town="Information not available",
-            registration_date=date(1900, 1, 1),
             contact_information=ContactInformation(),
             general_details="Information not available",
             directors_shareholders=["Information not available"],
