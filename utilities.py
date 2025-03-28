@@ -152,8 +152,8 @@ def find_tag(content, corporate_actions, adverse_media= []):
     tags = json.loads(result)
     return tags["tags"]
 
-def news_articles(search_queries, df, company, corporate_actions, adverse_media, years_back, max_results):
-    def fetch_news_urls(query, num_results=max_results, years_back=years_back):
+def news_articles(search_queries, df, company, corporate_actions, adverse_media, fromDate, toDate, max_results):
+    def fetch_news_urls(query, fromDate, toDate, num_results=max_results):
         """
         Fetch news article URLs from a given search query using Google News RSS feed
         with a date filter for the last 5 years
@@ -166,8 +166,8 @@ def news_articles(search_queries, df, company, corporate_actions, adverse_media,
         Returns:
             list: List of article URLs and their publication dates
         """
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=365 * years_back)
+        end_date = toDate
+        start_date = fromDate
         
         start_date_str = start_date.strftime("%Y-%m-%d")
         end_date_str = end_date.strftime("%Y-%m-%d")
@@ -217,11 +217,21 @@ def news_articles(search_queries, df, company, corporate_actions, adverse_media,
             print(f"Cannot fetch content for {url}: {e}")
             return None
         
-    def get_content_summary(content):
+    def get_content_summary(text):
         try:
-            summariser = SummarizationService(chat)
-            result = summariser.summarize(content)                 
-            return result
+            prompt = f"""
+            Summarize the given content in a few sentences. Every key point must be included in the summary. Return only the text.
+            Content: {text}
+            
+            OUTPUT FORMAT:
+            Summary
+            """
+            messages = [
+                        SystemMessage(content = "You are a summarisation AI."),
+                        HumanMessage(content = prompt)
+                    ]                    
+            summary = chat(messages)
+            return summary.content
         
         except Exception as e:
             print(f"Error summarizing content: {e}")
@@ -254,7 +264,7 @@ def news_articles(search_queries, df, company, corporate_actions, adverse_media,
     
     def news(search_query, company, df_news, visited_urls):
         try:
-            article_urls = fetch_news_urls(search_query)
+            article_urls = fetch_news_urls(search_query, fromDate, toDate)
         
             print(f"\nFound {len(article_urls)} news articles for '{search_query}':")
             i= 0
@@ -295,7 +305,7 @@ def news_articles(search_queries, df, company, corporate_actions, adverse_media,
             print(f"Error processing news: {e}")
     return df
 
-def articles(company, corporate_actions, adverse_media, max_results):
+def articles(company, corporate_actions, adverse_media, max_results, fromDate, toDate):
     entities = [company]
     adverse_keywords = adverse_media
     non_adverse_keywords = ["award", "recognition", "innovation", "sustainability", "CSR", "growth"]
@@ -331,11 +341,17 @@ def articles(company, corporate_actions, adverse_media, max_results):
         response = chat(messages)
         return response.content
     
-    def search_tavily_adverse(entity):
+    def search_tavily_adverse(entity, toDate, fromDate):
         try:
             results = []
+            if fromDate and toDate:
+                date_filter = f" after:{fromDate} before:{toDate}"
+            elif fromDate:
+                date_filter = f" after:{fromDate}"
+            elif toDate:
+                date_filter = f" before:{toDate}"
             for keyword in adverse_keywords+non_adverse_keywords+corporate_actions:
-                query = f"{entity} {keyword}"
+                query = f"{entity} {keyword} {date_filter}"
                 url = "https://api.tavily.com/search"
                 payload = {
                     "api_key": TAVILY_API_KEY,
@@ -354,20 +370,30 @@ def articles(company, corporate_actions, adverse_media, max_results):
 
     def analyze_with_gpt(text):
         try:
-            summariser = SummarizationService(chat)
-            result = summariser.summarize(text)                 
-            return result
+            prompt = f"""
+            Summarize the given content in a few sentences. Every key point must be included in the summary. Return only the text.
+            Content: {text}
+            
+            OUTPUT FORMAT:
+            Summary
+            """
+            messages = [
+                        SystemMessage(content = "You are a summarisation AI."),
+                        HumanMessage(content = prompt)
+                    ]                    
+            summary = chat(messages)
+            return summary.content
         
         except Exception as e:
             print(f"Error summarizing content: {e}")
             return None
 
-    def adverse_media_screening(entities, company):
+    def adverse_media_screening(entities, company, fromDate, toDate):
         results = []
     
         for entity in entities:
             print(f"Searching for adverse media related to {entity}...")
-            search_results = search_tavily_adverse(f"{entity} news")
+            search_results = search_tavily_adverse(f"{entity} news", fromDate, toDate)
             visited_urls = set()
             for result in search_results:
                 if result.get("url", "") in visited_urls:
@@ -394,5 +420,5 @@ def articles(company, corporate_actions, adverse_media, max_results):
     
         return pd.DataFrame(results)
     
-    df = adverse_media_screening(entities, company)
+    df = adverse_media_screening(entities, company, fromDate, toDate)
     return df
