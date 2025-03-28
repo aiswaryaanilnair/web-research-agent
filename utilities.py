@@ -47,7 +47,6 @@ class CompanyInformation(BaseModel):
     legal_form: str
     country: str
     town: str
-    registration_date: str
     contact_information: ContactInformation
     general_details: str
     ubo: Optional[str]
