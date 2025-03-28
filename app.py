@@ -414,30 +414,29 @@ def main():
                 director_content = director_check(content_list, company_name, data_dict)
                 sent_df = analyze_sentiment_by_tag(df)
                 
-                with open(f"{company_name}.md", "w") as f:
-                    f.write("# Adverse Media Research Results\n")
-                    md_table = sentiment_counts.to_markdown(index=False)
-                    f.write(md_table)
-                    if positive_content != '""':
-                        f.write("\n\n## Positive Media Keypoints:\n")
-                        f.write(positive_content)
                 
-                    if negative_content!= '""':
-                        f.write("\n\n## Negative Media Keypoints:\n")
-                        f.write(negative_content)
-                
-                    if neutral_content!= '""':
-                        f.write("\n\n## Neutral Media Keypoints:\n")
-                        f.write(neutral_content)
-                        
-                    f.write("\n\n## Sentiment Distribution by Category\n")
-                    md_table2 = sent_df.to_markdown(index=False)
-                    f.write(md_table2)
-                                    
-                    f.write("\n\n## Directors Sanity Check\n")
-                    f.write(director_content)
+                st.write("# Adverse Media Research Results\n")
+                md_table = sentiment_counts.to_markdown(index=False)
+                st.table(md_table)
+                if positive_content != '""':
+                    st.write("\n\n## Positive Media Keypoints:\n")
+                    st.write(positive_content)
+            
+                if negative_content!= '""':
+                    st.write("\n\n## Negative Media Keypoints:\n")
+                    st.write(negative_content)
+            
+                if neutral_content!= '""':
+                    st.write("\n\n## Neutral Media Keypoints:\n")
+                    st.write(neutral_content)
                     
-                md_to_html(f"{company_name}.md", f"{company_name}.html")
+                st.write("\n\n## Sentiment Distribution by Category\n")
+                md_table2 = sent_df.to_markdown(index=False)
+                st.table(md_table2)
+                                    
+                st.write("\n\n## Directors Sanity Check\n")
+                st.write(director_content)
+                
 
                 json_data = convert_df_to_json(df, output_file_name_json)
                 st.markdown(get_download_link_json(json_data, output_file_name_json), unsafe_allow_html=True)
