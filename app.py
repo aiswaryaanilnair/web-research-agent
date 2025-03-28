@@ -146,7 +146,6 @@ def format_company_data_as_dict(company_info):
                 "Legal Form",
                 "Country",
                 "Town",
-                "Registration Date",
                 "Email",
                 "Phone",
                 "Website",
