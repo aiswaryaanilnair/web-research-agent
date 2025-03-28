@@ -413,7 +413,7 @@ def main():
                 
                 st.write("# Adverse Media Research Results\n")
                 md_table = sentiment_counts.to_markdown(index=False)
-                st.table(sentiment_count)
+                st.table(sentiment_counts)
                 if positive_content != '""':
                     st.write("\n\n## Positive Media Keypoints:\n")
                     st.write(positive_content)
