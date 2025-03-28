@@ -359,8 +359,7 @@ def main():
         if not company_name:
             st.warning("Please enter a company name.")
             return
-        if not years_back:
-            years_back = 3
+        
             
         max_results = 2
         try:
