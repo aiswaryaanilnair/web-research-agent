@@ -413,7 +413,7 @@ def main():
                 
                 st.write("# Adverse Media Research Results\n")
                 md_table = sentiment_counts.to_markdown(index=False)
-                st.table(md_table)
+                st.table(sentiment_count)
                 if positive_content != '""':
                     st.write("\n\n## Positive Media Keypoints:\n")
                     st.write(positive_content)
@@ -428,7 +428,7 @@ def main():
                     
                 st.write("\n\n## Sentiment Distribution by Category\n")
                 md_table2 = sent_df.to_markdown(index=False)
-                st.table(md_table2)
+                st.table(sent_df)
                                     
                 st.write("\n\n## Directors Sanity Check\n")
                 st.write(director_content)
